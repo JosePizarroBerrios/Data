@@ -44,7 +44,7 @@ jobs:
           proxy_host: ${{ secrets.BASTION_HOST }}
           proxy_username: ${{ secrets.BASTION_USER }}
           proxy_key: ${{ secrets.BASTION_SSH_KEY }}
-          source: "compose.yml"
+          source: "docker-compose.yml"
           target: "~/proyecto_db"
 
       # Se conecta por SSH para levantar el contenedor con las variables alineadas
