@@ -78,4 +78,4 @@ jobs:
             export MYSQL_PASSWORD=$MYSQL_PASSWORD
             
             # Docker Compose ahora mapeará todo de forma idéntica y sin advertencias
-            docker compose up -d --remove-orphans
+            docker-compose up -d --remove-orphans
