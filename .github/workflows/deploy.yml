@@ -77,5 +77,6 @@ jobs:
             export MYSQL_USER=$MYSQL_USER
             export MYSQL_PASSWORD=$MYSQL_PASSWORD
             
-            # Docker Compose ahora mapeará todo de forma idéntica y sin advertencias
+            #se elimina volumen antiguo
+            docker-compose down -v
             docker-compose up -d --remove-orphans
