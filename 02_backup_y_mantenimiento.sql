@@ -125,16 +125,12 @@ DELIMITER ;
 
 -- Trigger para registrar cambios en usuarios
 DELIMITER //
-CREATE TRIGGER trg_usuarios_audit_insert
-AFTER INSERT ON usuarios
+CREATE TRIGGER tg_nuevo_usuario BEFORE INSERT ON usuarios
 FOR EACH ROW
 BEGIN
-    -- Aquí se podría insertar en una tabla de auditoría
-    -- Ejemplo: INSERT INTO auditoria_usuarios (accion, usuario_id, datos_antiguos, datos_nuevos, fecha) 
-    -- VALUES ('INSERT', NEW.id, NULL, JSON_OBJECT('nombre', NEW.nombre, 'email', NEW.email), NOW());
-    
-    -- Por ahora, solo un log simple
-    SELECT CONCAT('Nuevo usuario creado: ', NEW.nombre, ' (ID: ', NEW.id, ')') AS mensaje;
+    DECLARE v_id INT;
+    -- Guardamos el resultado en la variable, así MySQL no genera un result set flotante
+    SELECT id INTO v_id FROM perfiles WHERE tipo = 'externo' LIMIT 1;
 END //
 DELIMITER ;
 
