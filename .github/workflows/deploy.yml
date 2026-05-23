@@ -1,0 +1,81 @@
+name: Deploy MySQL to EC2 via Bastion
+
+on:
+  push:
+    branches:
+      - deploy
+
+jobs:
+  build-and-push:
+    name: Construir y Subir a Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Login en Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Construir y Subir Imagen
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/proyecto_db:latest
+
+  deploy-to-ec2:
+    name: Desplegar en EC2 Privada
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código (necesario para leer el compose.yml)
+        uses: actions/checkout@v4
+
+      # Copia el compose.yml real a la EC2 a través del Bastion Host
+      - name: Copiar docker-compose.yml a EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_PRIVATE_IP }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          proxy_host: ${{ secrets.BASTION_HOST }}
+          proxy_username: ${{ secrets.BASTION_USER }}
+          proxy_key: ${{ secrets.BASTION_SSH_KEY }}
+          source: "compose.yml"
+          target: "~/proyecto_db"
+
+      # Se conecta por SSH para levantar el contenedor con las variables alineadas
+      - name: Ejecutar despliegue vía SSH a través del Bastion
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
+          MYSQL_USER: ${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+        with:
+          host: ${{ secrets.EC2_PRIVATE_IP }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          proxy_host: ${{ secrets.BASTION_HOST }}
+          proxy_username: ${{ secrets.BASTION_USER }}
+          proxy_key: ${{ secrets.BASTION_SSH_KEY }}
+          envs: DOCKERHUB_USERNAME,MYSQL_ROOT_PASSWORD,MYSQL_DATABASE,MYSQL_USER,MYSQL_PASSWORD
+          script: |
+            cd ~/proyecto_db
+            
+            # Descargamos la imagen usando la variable corregida
+            docker pull $DOCKERHUB_USERNAME/proyecto_db:latest
+            
+            # Exportamos las variables con los mismos nombres exactos que pide el compose
+            export DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME
+            export MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+            export MYSQL_DATABASE=$MYSQL_DATABASE
+            export MYSQL_USER=$MYSQL_USER
+            export MYSQL_PASSWORD=$MYSQL_PASSWORD
+            
+            # Docker Compose ahora mapeará todo de forma idéntica y sin advertencias
+            docker compose up -d --remove-orphans
